@@ -20,6 +20,13 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
 // =========================================================================
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+// Register GetTasks.Handler in DI
+builder.Services.AddScoped<TaskApi.Features.Tasks.GetTasks.Handler>();
+builder.Services.AddScoped<TaskApi.Features.Tasks.GetTaskById.Handler>();
+// Register UpdateTask.Handler in DI
+builder.Services.AddScoped<TaskApi.Features.Tasks.UpdateTask.Handler>();
+// Register DeleteTask.Handler in DI
+builder.Services.AddScoped<TaskApi.Features.Tasks.DeleteTask.Handler>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
@@ -54,6 +61,10 @@ app.MapGet("/bug", _ => throw new Exception("Database connection failed!"));
 TaskApi.Features.System.GetRoot.Map(app);
 TaskApi.Features.System.HealthChecks.Map(app);
 TaskApi.Features.Tasks.CreateTask.Map(app);
+TaskApi.Features.Tasks.GetTasks.Map(app);
+TaskApi.Features.Tasks.GetTaskById.Map(app);
+TaskApi.Features.Tasks.UpdateTask.Map(app);
+TaskApi.Features.Tasks.DeleteTask.Map(app);
 
 // Automatic DB Migration
 using (var scope = app.Services.CreateScope())
@@ -64,13 +75,5 @@ using (var scope = app.Services.CreateScope())
 
 // Startup Output
 app.Start();
-
-var addresses = app.Urls.Count > 0 
-    ? string.Join(", ", app.Urls) 
-    : "http://localhost:5131";
-
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Now listening on: {Addresses}", addresses);
-logger.LogInformation("Swagger UI available at: {Addresses}/swagger", addresses.Split(',')[0]);
 
 await app.WaitForShutdownAsync();
