@@ -1,11 +1,9 @@
-namespace TaskApi.Data;
+namespace TaskApi.Common;
 
 using Microsoft.EntityFrameworkCore;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
     public DbSet<TaskEntity> Tasks => Set<TaskEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -33,5 +31,6 @@ public class TaskEntity
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
+    
     public bool Done { get; set; }
 }
