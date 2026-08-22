@@ -1,4 +1,5 @@
 using TaskApi.Common;
+using TaskApi.Infrastructure;
 namespace TaskApi.Features.Tasks;
 public static class DeleteTask
 {
@@ -8,14 +9,8 @@ public static class DeleteTask
         private readonly AppDbContext _db = db;
 
         public async Task<bool> ExecuteAsync(int id, CancellationToken ct)
-        {
-            var taskEntity = await _db.Tasks.FindAsync([id], ct);
-
-            if (taskEntity is null)
-            {
-                return false;
-            }
-
+        {//Business Rule: Check if the task exists before deleting
+            var taskEntity = await _db.Tasks.FindAsync([id], ct) ?? throw new TaskNotFoundException(id);
             _db.Tasks.Remove(taskEntity);
             await _db.SaveChangesAsync(ct);
             return true;
@@ -31,6 +26,7 @@ public static class DeleteTask
             return deleted ? Results.NoContent() : Results.NotFound();
         })
         .WithName("DeleteTask")
-        .WithTags("Tasks");
+        .WithTags("Tasks")
+        .ProducesProblem(StatusCodes.Status404NotFound); // Document error status codes for Swagger UI
     }
 }

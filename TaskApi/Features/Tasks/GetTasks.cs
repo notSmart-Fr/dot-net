@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using TaskApi.Common;
+using TaskApi.Infrastructure;
 
 namespace TaskApi.Features.Tasks;
 
@@ -32,5 +32,6 @@ public static class GetTasks
         })
         .WithName("GetTasks")
         .WithTags("Tasks");
+        
     }
 }

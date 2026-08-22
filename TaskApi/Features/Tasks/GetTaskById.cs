@@ -1,5 +1,6 @@
-using TaskApi.Common;
 using Microsoft.EntityFrameworkCore;
+using TaskApi.Common;
+using TaskApi.Infrastructure;
 namespace TaskApi.Features.Tasks;
 public static class GetTaskById
 {
@@ -15,13 +16,7 @@ public static class GetTaskById
         {
             var taskEntity = await _db.Tasks
                 .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == id, ct);
-
-            if (taskEntity is null)
-            {
-                return null;
-            }
-
+                .FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw new TaskNotFoundException(id);
             return new TaskDto(taskEntity.Id, taskEntity.Title, taskEntity.Done);
         }
     }
@@ -35,6 +30,8 @@ public static class GetTaskById
             return task is not null ? Results.Ok(task) : Results.NotFound();
         })
         .WithName("GetTaskById")
-        .WithTags("Tasks");
+        .WithTags("Tasks")
+        .ProducesProblem(StatusCodes.Status404NotFound); // Document error status codes for Swagger UI
+
     }
 }

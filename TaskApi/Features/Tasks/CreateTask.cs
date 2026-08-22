@@ -1,5 +1,8 @@
 using FluentValidation;
 using TaskApi.Common;
+using TaskApi.Domain;
+using TaskApi.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskApi.Features.Tasks;
 
@@ -27,6 +30,14 @@ public static class CreateTask
 
         public async Task<CreateTaskResponse> ExecuteAsync(CreateTaskRequest request, CancellationToken ct)
         {
+            // Business Rule: Check for duplicate titles
+            var existingTask = await _db.Tasks
+                .AnyAsync(t => t.Title == request.Title, ct);
+            if (existingTask)
+            {
+                throw new DuplicateTaskException(request.Title);
+            }
+            
             var taskEntity = new TaskEntity
             {
                 Title = request.Title,
@@ -42,14 +53,17 @@ public static class CreateTask
 
     // 4. ENDPOINT ROUTE
     public static void Map(IEndpointRouteBuilder app)
-    {
+    {   // POST /tasks 
         app.MapPost("/tasks", async (CreateTaskRequest request, Handler handler, CancellationToken ct) =>
         {
             var response = await handler.ExecuteAsync(request, ct);
-            return Results.Created($"/tasks/{response.Id}", response);
+            // Return 201 Created with the new task's location with typedError
+            return TypedResults.Created($"/tasks/{response.Id}", response);
         })
         .WithName("CreateTask")
         .WithTags("Tasks")
-        .AddEndpointFilter<ValidationFilter<CreateTaskRequest>>();
+        .AddEndpointFilter<ValidationFilter<CreateTaskRequest>>()
+        .ProducesValidationProblem(StatusCodes.Status400BadRequest) // FluentValidation
+        .ProducesProblem(StatusCodes.Status409Conflict);            // DuplicateTaskException
     }
 }

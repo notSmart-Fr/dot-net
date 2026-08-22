@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text.Json;
 
 namespace TaskApi.Features.System;
 
@@ -7,7 +8,38 @@ public static class HealthChecks
 {
     public static void Map(IEndpointRouteBuilder app)
     {
-        // Exposes GET /health (Returns 200 OK "Healthy" or 503 "Unhealthy")
-        app.MapHealthChecks("/health");
+        // 1. Liveness Probe (/healthz/live) -> Returns 200 if the process is alive
+        app.MapHealthChecks("/healthz/live", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("live")
+        });
+
+        // 2. Readiness Probe (/healthz/ready) -> Checks Database + Redis before sending traffic
+        app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("ready"),
+            ResponseWriter = WriteJsonResponse
+        });
+    }
+
+    private static Task WriteJsonResponse(HttpContext context, HealthReport report)
+    {
+        context.Response.ContentType = "application/json";
+
+        var response = new
+        {
+            status = report.Status.ToString(),
+            totalDuration = report.TotalDuration.TotalMilliseconds + "ms",
+            entries = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.TotalMilliseconds + "ms",
+                exception = e.Value.Exception?.Message
+            })
+        };
+
+        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
 }

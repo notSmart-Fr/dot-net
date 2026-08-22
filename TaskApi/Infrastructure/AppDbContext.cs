@@ -1,6 +1,7 @@
-namespace TaskApi.Common;
-
 using Microsoft.EntityFrameworkCore;
+using TaskApi.Domain;
+
+namespace TaskApi.Infrastructure;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
@@ -14,8 +15,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.ToTable("tasks");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Title).IsRequired();
-            entity.Property(e => e.Done).HasDefaultValue(false);
+            
+            // Explicit constraints
+            entity.Property(e => e.Title)
+                  .IsRequired()
+                  .HasMaxLength(200);
+
+            entity.Property(e => e.Done)
+                  .HasDefaultValue(false);
 
             // Stage 0 Initial Seed Data
             entity.HasData(
@@ -25,12 +32,4 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             );
         });
     }
-}
-
-public class TaskEntity
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    
-    public bool Done { get; set; }
 }

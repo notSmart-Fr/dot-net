@@ -1,6 +1,6 @@
 using FluentValidation;
-using Microsoft.AspNetCore.Http.HttpResults;
 using TaskApi.Common;
+using TaskApi.Infrastructure;
 
 namespace TaskApi.Features.Tasks;
 
@@ -26,10 +26,10 @@ public static class UpdateTask
     {
         private readonly AppDbContext _db = db;
 
-        public async Task<UpdateTaskResponse?> ExecuteAsync(int id, UpdateTaskRequest request, CancellationToken ct)
+        public async Task<UpdateTaskResponse> ExecuteAsync(int id, UpdateTaskRequest request, CancellationToken ct)
         {
-            var taskEntity = await _db.Tasks.FindAsync([id], ct);
-            if (taskEntity is null) return null;
+            // Business Rule: Check if the task exists before updating
+            var taskEntity = await _db.Tasks.FindAsync([id], ct) ?? throw new TaskNotFoundException(id);
 
             taskEntity.Title = request.Title;
             taskEntity.Done = request.Done;
@@ -39,32 +39,19 @@ public static class UpdateTask
             return new UpdateTaskResponse(taskEntity.Id, taskEntity.Title, taskEntity.Done);
         }
     }
-
-    // 4. ROUTE MAPPER
+        // 4. ENDPOINT ROUTE
     public static void Map(IEndpointRouteBuilder app)
+{
+    app.MapPut("/tasks/{id:int}", async (int id, UpdateTaskRequest request, Handler handler, CancellationToken ct) =>
     {
-        app.MapPut("/tasks/{id:int}", async Task<Results<Ok<UpdateTaskResponse>, NotFound, ValidationProblem>> (
-            int id,
-            UpdateTaskRequest request,
-            IValidator<UpdateTaskRequest> validator,
-            Handler handler,
-            CancellationToken ct) =>
-        {
-            var validationResult = await validator.ValidateAsync(request, ct);
-            if (!validationResult.IsValid)
-            {
-                return TypedResults.ValidationProblem(validationResult.ToDictionary());
-            }
-
-            var response = await handler.ExecuteAsync(id, request, ct);
-            if (response is null)
-            {
-                return TypedResults.NotFound();
-            }
-
-            return TypedResults.Ok(response);
-        })
-        .WithName("UpdateTask")
-        .WithTags("Tasks");
-    }
+        var response = await handler.ExecuteAsync(id, request, ct);
+        return TypedResults.Ok(response);
+    })
+    .WithName("UpdateTask")
+    .WithTags("Tasks")
+    .AddEndpointFilter<ValidationFilter<UpdateTaskRequest>>()
+    // Document error status codes for Swagger UI
+    .ProducesValidationProblem(StatusCodes.Status400BadRequest) // FluentValidation
+    .ProducesProblem(StatusCodes.Status404NotFound);            // TaskNotFoundException
+}
 }
