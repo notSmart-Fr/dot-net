@@ -58,10 +58,17 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+// 2. CONFIGURE HTTP PIPELINE
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Task API v1");
+        
+        // This line changes the URL from /swagger to /docs
+        c.RoutePrefix = "docs"; 
+    });
 }
 
 // Dev Test Endpoint for 500 Error Testing
