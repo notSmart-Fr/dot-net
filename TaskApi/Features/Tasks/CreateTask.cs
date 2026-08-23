@@ -10,7 +10,8 @@ public static class CreateTask
 {
     // 1. DTOs
     public record CreateTaskRequest(string Title, bool Done = false);
-    public record CreateTaskResponse(int Id, string Title, bool Done);
+    // Response DTO
+    public record TaskResponse(int Id, string Title, bool Done);
 
     // 2. VALIDATOR
     public class CreateTaskValidator : AbstractValidator<CreateTaskRequest>
@@ -28,7 +29,7 @@ public static class CreateTask
     {
         private readonly AppDbContext _db = db;
 
-        public async Task<CreateTaskResponse> ExecuteAsync(CreateTaskRequest request, CancellationToken ct)
+        public async Task<TaskResponse> ExecuteAsync(CreateTaskRequest request, CancellationToken ct)
         {
             // Business Rule: Check for duplicate titles
             var existingTask = await _db.Tasks
@@ -47,7 +48,7 @@ public static class CreateTask
             _db.Tasks.Add(taskEntity);
             await _db.SaveChangesAsync(ct);
 
-            return new CreateTaskResponse(taskEntity.Id, taskEntity.Title, taskEntity.Done);
+            return new TaskResponse(taskEntity.Id, taskEntity.Title, taskEntity.Done);
         }
     }
 
@@ -57,7 +58,7 @@ public static class CreateTask
         app.MapPost("/tasks", async (CreateTaskRequest request, Handler handler, CancellationToken ct) =>
         {
             var response = await handler.ExecuteAsync(request, ct);
-            // Return 201 Created with the new task's location with typedError
+            // Return 201 Created with the new task's location
             return TypedResults.Created($"/tasks/{response.Id}", response);
         })
         .WithName("CreateTask")
