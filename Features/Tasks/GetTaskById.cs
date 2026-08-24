@@ -27,7 +27,7 @@ public static class GetTaskById
         app.MapGet("/tasks/{id:int}", async (int id, Handler handler, CancellationToken ct) =>
         {
             var task = await handler.ExecuteAsync(id, ct);
-            return task is not null ? Results.Ok(task) : Results.NotFound();
+            return TypedResults.Ok(task);
         })
         .WithName("GetTaskById")
         .WithTags("Tasks")

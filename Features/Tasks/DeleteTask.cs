@@ -23,10 +23,11 @@ public static class DeleteTask
         app.MapDelete("/tasks/{id:int}", async (int id, Handler handler, CancellationToken ct) =>
         {
             var deleted = await handler.ExecuteAsync(id, ct);
-            return deleted ? Results.NoContent() : Results.NotFound();
+            return TypedResults.NoContent();
         })
         .WithName("DeleteTask")
         .WithTags("Tasks")
         .ProducesProblem(StatusCodes.Status404NotFound); // Document error status codes for Swagger UI
+        
     }
 }
