@@ -82,3 +82,39 @@ var tasks = await db.Tasks
     .OrderByDescending(task => task.Id)
     .ToListAsync(cancellationToken);
 ```
+
+## Run with Docker
+
+### Prerequisites
+
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+### Steps to Run
+
+1. Create the Docker environment file from the provided template:
+
+   ```bash
+   copy .env.example .env
+   ```
+
+   On macOS or Linux, use `cp .env.example .env` instead. Update the PostgreSQL password values in `.env` before starting the containers.
+
+2. Build the image and start the API and database containers:
+
+   ```bash
+   docker compose up --build
+   ```
+
+3. Open Swagger UI at <http://localhost:5131/swagger>.
+
+4. Stop the containers with `Ctrl+C`, or run the following command from another terminal:
+
+   ```bash
+   docker compose down
+   ```
+
+To view the application logs while the containers are running, use:
+
+```bash
+docker compose logs -f app
+```
