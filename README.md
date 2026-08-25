@@ -1,26 +1,26 @@
 # TaskApi
 
-TaskApi is a minimal ASP.NET Core task management API backed by SQLite and Entity Framework Core.
+TaskApi is a minimal ASP.NET Core task management API backed by PostgreSQL and Entity Framework Core.
 
-## Why SQLite?
+## Why PostgreSQL?
 
-SQLite was chosen because it is lightweight, embedded, and requires no separate database server for local development. The database is stored as a single file, which keeps the project easy to run and inspect while still providing relational data storage through Entity Framework Core.
+PostgreSQL was chosen to provide a reliable relational database for the containerized application, including strong typing, durable storage, and support for concurrent API requests. The database runs in its own PostgreSQL container and is managed by Entity Framework Core through the Npgsql provider.
 
-## Database location
+## Database storage
 
-The connection string in `appsettings.json` is:
-
-```text
-Data Source=tasks.db
-```
-
-Because the path is relative, the database file is created at:
+The Docker connection string is configured through `.env` and points the API to the `db` service:
 
 ```text
-TaskApi/tasks.db
+Host=db;Port=5432;Database=taskdb;Username=postgres;Password=your_password_here
 ```
 
-The application creates the database and its schema automatically on startup with `EnsureCreatedAsync()`. The initial task data is seeded by `AppDbContext`.
+PostgreSQL data is stored in the named Docker volume `postgres_data`, mounted at `/var/lib/postgresql/data` inside the database container. The database schema and initial seed data are created by `scripts/init.sql` when the database volume is initialized for the first time.
+
+## Data access and API surface
+
+This project does not define a custom repository interface or repository class. `AppDbContext` and its `DbSet<TaskEntity>` provide the Entity Framework Core data-access abstraction, and the feature handlers use the context directly. The data source was migrated from in-memory storage to PostgreSQL by changing the dependency-injection configuration to `UseNpgsql()` in `Program.cs`.
+
+The application services and routes remained unchanged. Only the underlying EF Core provider and database configuration changed, so the existing task API behavior is preserved while data now survives container restarts.
 
 ## How to Start the Project
 
@@ -42,7 +42,7 @@ The application creates the database and its schema automatically on startup wit
    dotnet run
    ```
 
-   The database file will automatically be created and seeded with 3 example tasks on the first run.
+   When running through Docker, PostgreSQL is initialized and seeded with 3 example tasks on the first database-volume initialization.
 
 3. Open Swagger UI in your browser.
 
@@ -50,10 +50,10 @@ The application creates the database and its schema automatically on startup wit
 
 ## Database viewer screenshot
 
-Add a screenshot of the SQLite database viewer below. Replace the placeholder path with the image file you add to the repository.
+Add a screenshot of the PostgreSQL database viewer below. Replace the placeholder path with the image file you add to the repository.
 
-<!-- Replace the path below with the database viewer screenshot. -->
-![SQLite database viewer screenshot](docs/database-viewer-screenshot.png)
+<!-- Replace the path below with the PostgreSQL database viewer screenshot. -->
+![PostgreSQL database viewer screenshot](docs/database-viewer-screenshot.png)
 
 ## Swagger UI screenshot
 
@@ -64,13 +64,13 @@ Add a screenshot of the Swagger UI below. Replace the placeholder path with the 
 
 ## Example Entity Framework Core query
 
-The following SQL query was executed against `tasks.db` to list incomplete tasks, newest first:
+The following SQL query was executed against PostgreSQL to list incomplete tasks, newest first:
 
 ```sql
-SELECT "Id", "Title", "Done"
-FROM "tasks"
-WHERE "Done" = 0
-ORDER BY "Id" DESC;
+SELECT id, title, done
+FROM tasks
+WHERE done = FALSE
+ORDER BY id DESC;
 ```
 
 The equivalent Entity Framework Core query used by the API is:
@@ -82,6 +82,12 @@ var tasks = await db.Tasks
     .OrderByDescending(task => task.Id)
     .ToListAsync(cancellationToken);
 ```
+
+## Persistence verification
+
+Persistence was checked through Swagger UI at <http://localhost:5131/docs> by creating a task with `POST /tasks`, noting its generated ID from the `201 Created` response, and confirming it with `GET /tasks/{id}`. The containers were then stopped and removed with `docker compose down`, without deleting the named `postgres_data` volume. After starting the stack again with `docker compose up -d`, the same task was requested through `GET /tasks/{id}` and was still present.
+
+Do not use `docker compose down -v` for this check because that command deletes the PostgreSQL volume and its data.
 
 ## Run with Docker
 

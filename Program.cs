@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using StackExchange.Redis;
 using TaskApi.Common;
 using TaskApi.Infrastructure;
 
@@ -15,7 +16,7 @@ builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
 builder.Logging.AddFilter("Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware", LogLevel.None);
 
 // =========================================================================
-// 2. INFRASTRUCTURE & DATABASE (PostgreSQL)
+// 2. INFRASTRUCTURE & DATABASE (PostgreSQL & Redis)
 // =========================================================================
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? builder.Configuration.GetConnectionString("Default");
@@ -23,6 +24,17 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)
            .UseSnakeCaseNamingConvention());
+
+// Configure Redis Connection Options (Graceful retry on boot)
+// Change "localhost:6379" to "redis:6379"
+var redisConnectionString = builder.Configuration["REDIS_CONNECTION"] ?? "redis:6379";
+var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
+redisOptions.AbortOnConnectFail = false; // Prevents container crash on initial startup delay
+redisOptions.ConnectTimeout = 5000;
+redisOptions.ConnectRetry = 5;
+
+var redisConnection = ConnectionMultiplexer.Connect(redisOptions);
+builder.Services.AddSingleton<IConnectionMultiplexer>(redisConnection);
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>(
@@ -48,10 +60,24 @@ builder.Services.AddScoped<TaskApi.Features.Tasks.DeleteTask.Handler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// BUILD THE APP CONTAINER
 var app = builder.Build();
 
 // =========================================================================
-// 4. MIDDLEWARE PIPELINE
+// 4. RUNTIME PING & REDIS VERIFICATION
+// =========================================================================
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+var redis = app.Services.GetRequiredService<IConnectionMultiplexer>();
+var redisDb = redis.GetDatabase();
+
+var latency = await redisDb.PingAsync();
+
+// Use the source-generated LoggerMessage extension method
+logger.RedisConnected(redisConnectionString, latency.TotalMilliseconds);
+// Clickable Host URL Log for Terminal
+logger.LogInformation("🚀 API Docs available at: http://localhost:5131/docs");
+// =========================================================================
+// 5. MIDDLEWARE PIPELINE
 // =========================================================================
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -69,7 +95,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // =========================================================================
-// 5. MAP ENDPOINTS
+// 6. MAP ENDPOINTS
 // =========================================================================
 TaskApi.Features.System.GetRoot.Map(app);
 TaskApi.Features.System.HealthChecks.Map(app);

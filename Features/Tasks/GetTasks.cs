@@ -32,9 +32,8 @@ public static class GetTasks
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var searchTerm = query.Search.Trim().ToLower();
-                #pragma warning disable CA1862 // EF Core LINQ requires .ToLower() for SQL translation
-                dbQuery = dbQuery.Where(t => t.Title.ToLower().Contains(searchTerm));
-                #pragma warning restore CA1862
+                //using ilike for case-insensitive search in PostgreSQL
+                dbQuery = dbQuery.Where(t => EF.Functions.ILike(t.Title, $"%{searchTerm}%"));
             }
 
             // Filter 2: Completion status

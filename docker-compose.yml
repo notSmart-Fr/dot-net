@@ -17,6 +17,20 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      # =========================================================================
+  # REDIS SERVICE
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: task_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   app:
     build:
@@ -29,8 +43,11 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}
       - ASPNETCORE_ENVIRONMENT=Development
+      - REDIS_CONNECTION=redis:6379
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:
