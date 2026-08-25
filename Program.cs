@@ -1,11 +1,48 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
+using Supabase;
 using TaskApi.Common;
 using TaskApi.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+// 1. Fetch Supabase URL
+var supabaseUrl = builder.Configuration["Supabase:Url"] 
+    ?? throw new InvalidOperationException("Supabase URL missing");
+var supabaseKey = builder.Configuration["Supabase:AnonKey"] 
+    ?? throw new InvalidOperationException("Supabase Key missing");
+
+// 2. Register Native .NET JWT Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        // Supabase issues tokens with Authority = https://<project-ref>.supabase.co/auth/v1
+        options.Authority = $"{supabaseUrl}/auth/v1";
+        options.Audience = "authenticated"; // Default audience for Supabase Auth JWTs
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = $"{supabaseUrl}/auth/v1",
+            ValidateAudience = true,
+            ValidAudience = "authenticated",
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero // Strict token expiration handling
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// 3. Register Supabase Client SDK (used ONLY for signup/login/logout operations)
+builder.Services.AddScoped<Supabase.Client>(_ => 
+    new Supabase.Client(supabaseUrl, supabaseKey, new SupabaseOptions
+    {
+        AutoRefreshToken = true,
+        AutoConnectRealtime = false
+    }));
 
 // =========================================================================
 // 1. LOGGING CONFIGURATION
@@ -81,6 +118,8 @@ logger.LogInformation("🚀 API Docs available at: http://localhost:5131/docs");
 // =========================================================================
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseAuthentication(); // 1. Extracts & validates JWT signature
+app.UseAuthorization();  // 2. Evaluates access policy
 
 if (app.Environment.IsDevelopment())
 {
