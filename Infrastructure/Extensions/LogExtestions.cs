@@ -1,4 +1,4 @@
-namespace TaskApi.Infrastructure;
+namespace TaskApi.Infrastructure.Extensions;
 
 public static partial class LogExtensions
 {

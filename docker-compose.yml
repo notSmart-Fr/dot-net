@@ -43,7 +43,7 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}
       - ASPNETCORE_ENVIRONMENT=Development
-      - REDIS_CONNECTION=redis:6379
+      - Redis__Connection=redis:6379
     depends_on:
       db:
         condition: service_healthy

@@ -1,5 +1,6 @@
 using FluentValidation;
 using TaskApi.Common;
+using TaskApi.Common.Exceptions;
 using TaskApi.Infrastructure;
 
 namespace TaskApi.Features.Tasks;

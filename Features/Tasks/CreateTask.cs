@@ -3,6 +3,7 @@ using TaskApi.Common;
 using TaskApi.Domain;
 using TaskApi.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using TaskApi.Common.Exceptions;
 
 namespace TaskApi.Features.Tasks;
 
