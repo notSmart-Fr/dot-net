@@ -1,34 +1,46 @@
-using TaskApi.Common;
-using TaskApi.Common.Exceptions;
-using TaskApi.Infrastructure;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using TaskApi.Core.Exceptions;
+using TaskApi.Core.Interfaces;
+using TaskApi.Infrastructure.Database;
+
 namespace TaskApi.Features.Tasks;
+
 public static class DeleteTask
 {
-    // 1. HANDLER: Delete a task by ID
+    // 1. HANDLER
     public class Handler(AppDbContext db)
     {
-        private readonly AppDbContext _db = db;
+        public async Task ExecuteAsync(int id, CancellationToken ct)
+        {
+            var taskEntity = await db.Tasks.FindAsync([id], ct) 
+                ?? throw new TaskNotFoundException(id);
 
-        public async Task<bool> ExecuteAsync(int id, CancellationToken ct)
-        {//Business Rule: Check if the task exists before deleting
-            var taskEntity = await _db.Tasks.FindAsync([id], ct) ?? throw new TaskNotFoundException(id);
-            _db.Tasks.Remove(taskEntity);
-            await _db.SaveChangesAsync(ct);
-            return true;
+            db.Tasks.Remove(taskEntity);
+            await db.SaveChangesAsync(ct);
         }
     }
 
-    // 2. ENDPOINT ROUTE
-    public static void Map(IEndpointRouteBuilder app)
+    // 2. ENDPOINT (Implements IEndpoint for Auto-Scanning)
+    public class Endpoint : IEndpoint
     {
-        app.MapDelete("/tasks/{id:int}", async (int id, Handler handler, CancellationToken ct) =>
+        public void MapEndpoint(IEndpointRouteBuilder app)
         {
-            var deleted = await handler.ExecuteAsync(id, ct);
+            app.MapDelete("/tasks/{id:int}", HandleAsync)
+               .WithName("DeleteTask")
+               .WithTags("Tasks")
+               .Produces(StatusCodes.Status204NoContent)
+               .ProducesProblem(StatusCodes.Status404NotFound);
+        }
+
+        private static async Task<IResult> HandleAsync(
+            int id, 
+            Handler handler, 
+            CancellationToken ct)
+        {
+            await handler.ExecuteAsync(id, ct);
             return TypedResults.NoContent();
-        })
-        .WithName("DeleteTask")
-        .WithTags("Tasks")
-        .ProducesProblem(StatusCodes.Status404NotFound); // Document error status codes for Swagger UI
-        
+        }
     }
 }

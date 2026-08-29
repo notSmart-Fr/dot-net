@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskApi.Core.Interfaces;
 
 namespace TaskApi.Common.Exceptions.Mappers;
 
@@ -11,9 +12,12 @@ public class UnauthorizedExceptionMapper : IExceptionMapper
         var details = new ProblemDetails
         {
             Status = StatusCodes.Status401Unauthorized,
-            Type = "https://datatracker.ietf.org/doc/html/rfc7235#section-3.1",
+            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.2",
             Title = "Unauthorized",
-            Detail = exception.Message,
+            // Use fallback text if exception.Message looks like a generic system error
+            Detail = string.IsNullOrWhiteSpace(exception.Message) 
+                ? "You are not authorized to access this resource." 
+                : exception.Message,
             Instance = context.Request.Path
         };
 

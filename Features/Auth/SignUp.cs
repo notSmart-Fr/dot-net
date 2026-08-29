@@ -1,7 +1,11 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Routing;
 using Supabase;
-using TaskApi.Common;
-using TaskApi.Infrastructure;
+using TaskApi.Common.Filters;
+using TaskApi.Core.Interfaces;
 
 namespace TaskApi.Features.Auth;
 
@@ -29,13 +33,11 @@ public static class Signup
     // 3. HANDLER
     public class Handler(Client supabaseClient)
     {
-        private readonly Client _supabaseClient = supabaseClient;
-
         public async Task<SignupResponse> ExecuteAsync(SignupRequest request, CancellationToken ct)
         {
             // If Supabase rejects signup (e.g. duplicate email), it throws GotrueException
             // which GotrueExceptionMapper cleanly handles as a 400 Bad Request.
-            var signUpResult = await _supabaseClient.Auth.SignUp(request.Email, request.Password);
+            var signUpResult = await supabaseClient.Auth.SignUp(request.Email, request.Password);
             
             if (signUpResult?.User?.Id == null || signUpResult.User.Email == null)
             {
@@ -46,20 +48,27 @@ public static class Signup
         }
     }
 
-    // 4. ENDPOINT ROUTE
-    public static void Map(IEndpointRouteBuilder app)
+    // 4. ENDPOINT (Implements IEndpoint for Assembly Auto-Scanning)
+    public class Endpoint : IEndpoint
     {
-        // POST /auth/signup
-        app.MapPost("/auth/signup", async (SignupRequest request, Handler handler, CancellationToken ct) =>
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapPost("/auth/signup", HandleAsync)
+               .WithName("Signup")
+               .WithTags("Auth")
+               .AddEndpointFilter<ValidationFilter<SignupRequest>>()
+               .Produces<SignupResponse>(StatusCodes.Status201Created)
+               .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+               .ProducesProblem(StatusCodes.Status400BadRequest);
+        }
+
+        private static async Task<Created<SignupResponse>> HandleAsync(
+            SignupRequest request, 
+            Handler handler, 
+            CancellationToken ct)
         {
             var response = await handler.ExecuteAsync(request, ct);
-            return Results.Created($"/users/{response.Id}", response);
-        })
-        .WithName("Signup")
-        .WithTags("Auth")
-        .AddEndpointFilter<ValidationFilter<SignupRequest>>()
-        .Produces<SignupResponse>(StatusCodes.Status201Created)
-        .ProducesValidationProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
+            return TypedResults.Created($"/users/{response.Id}", response);
+        }
     }
 }

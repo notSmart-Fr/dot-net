@@ -1,30 +1,36 @@
+using TaskApi.Infrastructure.ApiDocs;
+using TaskApi.Infrastructure.Auth;
+using TaskApi.Infrastructure.Caching;
+using TaskApi.Infrastructure.Database;
+using TaskApi.Infrastructure.ExceptionHandling;
 using TaskApi.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Core & Infrastructure Services
-builder.AddCustomLogging();
-builder.Services.AddGlobalExceptionInfrastructure();
-builder.Services.AddSupabaseAuthentication(builder.Configuration);
-builder.Services.AddDatabaseAndCaching(builder.Configuration);
+// 1. Co-Located Infrastructure Modules
+builder.Services.AddDatabaseInfrastructure(builder.Configuration);
+builder.Services.AddRedisInfrastructure(builder.Configuration);
+builder.Services.AddAuthInfrastructure(builder.Configuration);
+builder.Services.AddExceptionHandlingInfrastructure(); // Auto-scans all IExceptionMappers
+builder.Services.AddApiDocsInfrastructure();
 
-// 2. Application Feature Services & Documentation
-builder.Services.AddApplicationServices();
-builder.Services.AddOpenApiDocumentation();
+// 2. Feature Application Services
+builder.Services.AddFeatureInfrastructure(); // Auto-scans all Handlers & Validators
 
-// 3. Build Container & Perform Boot Checks
 var app = builder.Build();
-await app.Services.VerifyInfrastructureConnectionsAsync(builder.Configuration);
+//verify Redis connection
+await app.VerifyRedisConnectionAsync();
 
-// 4. Middleware Pipeline
-app.UseGlobalMiddleware();
+// 3. Request Pipeline Orchestration
+app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseDevelopmentApiDocs();
+    app.UseApiDocsDevelopmentUI();
 }
 
-// 5. Map Endpoints
-app.MapApplicationEndpoints();
+app.MapApplicationEndpoints(); // Auto-scans and registers all IEndpoint implementations
 
 app.Run();

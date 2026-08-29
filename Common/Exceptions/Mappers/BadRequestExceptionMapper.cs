@@ -1,23 +1,21 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskApi.Core.Interfaces;
 
 namespace TaskApi.Common.Exceptions.Mappers;
 
-public class BadRequestExceptionMapper : IExceptionMapper
+public sealed class BadRequestExceptionMapper : IExceptionMapper
 {
-    public bool CanHandle(Exception exception) => exception is BadHttpRequestException;
+    public bool CanHandle(Exception exception) => 
+        exception is BadHttpRequestException or FormatException;
 
     public (int StatusCode, ProblemDetails Details) Map(HttpContext context, Exception exception, string traceId)
     {
-        var ex = (BadHttpRequestException)exception;
-        var firstLineReason = ex.InnerException?.Message ?? ex.Message;
-        _ = firstLineReason.Split(["\r\n", "\n"], StringSplitOptions.None)[0];
-
         var details = new ProblemDetails
         {
             Status = StatusCodes.Status400BadRequest,
-            Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1",
-            Title = "Invalid JSON Payload",
-            Detail = "The request payload contains invalid JSON syntax or missing required fields.",
+            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.1",
+            Title = "Bad Request",
+            Detail = "The request payload was malformed or contained invalid data formats.",
             Instance = context.Request.Path
         };
 

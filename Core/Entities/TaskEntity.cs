@@ -1,4 +1,4 @@
-namespace TaskApi.Domain;
+namespace TaskApi.Core.Entities;
 public class TaskEntity
 {
     public int Id { get; set; }

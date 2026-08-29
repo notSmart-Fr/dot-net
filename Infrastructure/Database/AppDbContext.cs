@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using TaskApi.Domain;
+using TaskApi.Core.Entities;
 
-namespace TaskApi.Infrastructure;
+namespace TaskApi.Infrastructure.Database;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {

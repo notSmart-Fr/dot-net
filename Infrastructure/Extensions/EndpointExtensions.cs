@@ -1,35 +1,25 @@
+using TaskApi.Core.Interfaces;
+
 namespace TaskApi.Infrastructure.Extensions;
 
 public static class EndpointExtensions
 {
     public static WebApplication MapApplicationEndpoints(this WebApplication app)
     {
-        // System & Public
-        Features.System.GetRoot.Map(app);
-        Features.System.HealthChecks.Map(app);
-        Features.Public.GetPublicInfo.Map(app);
+        // Auto-discover all classes implementing IEndpoint across the solution
+        var endpointTypes = typeof(Program).Assembly.GetTypes()
+            .Where(t => typeof(IEndpoint).IsAssignableFrom(t) 
+                     && !t.IsInterface 
+                     && !t.IsAbstract);
 
-        // Auth & Profile
-        Features.Auth.Signup.Map(app);
-        Features.Auth.Login.Map(app);
-        Features.Profile.GetProfile.Map(app);
+        foreach (var type in endpointTypes)
+        {
+            if (Activator.CreateInstance(type) is IEndpoint endpoint)
+            {
+                endpoint.MapEndpoint(app);
+            }
+        }
 
-        // Tasks
-        Features.Tasks.CreateTask.Map(app);
-        Features.Tasks.GetTasks.Map(app);
-        Features.Tasks.GetTaskById.Map(app);
-        Features.Tasks.UpdateTask.Map(app);
-        Features.Tasks.DeleteTask.Map(app);
-
-        return app;
-    }
-
-    public static WebApplication UseGlobalMiddleware(this WebApplication app)
-    {
-        app.UseExceptionHandler();
-        app.UseStatusCodePages();
-        app.UseAuthentication();
-        app.UseAuthorization();
         return app;
     }
 }

@@ -1,6 +1,6 @@
-namespace TaskApi.Infrastructure.Extensions;
+namespace TaskApi.Infrastructure.Caching;
 
-public static partial class LogExtensions
+public static partial class RedisLogEvents
 {
     [LoggerMessage(
         EventId = 1001,

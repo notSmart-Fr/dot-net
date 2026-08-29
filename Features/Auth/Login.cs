@@ -1,7 +1,11 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Routing;
 using Supabase;
-using TaskApi.Common;
-using TaskApi.Infrastructure;
+using TaskApi.Common.Filters;
+using TaskApi.Core.Interfaces;
 
 namespace TaskApi.Features.Auth;
 
@@ -34,13 +38,11 @@ public static class Login
     // 3. HANDLER
     public class Handler(Client supabaseClient)
     {
-        private readonly Client _supabaseClient = supabaseClient;
-
         public async Task<Response> ExecuteAsync(Request request, CancellationToken ct)
         {
             // Note: If credentials are wrong, Supabase throws GotrueException.
             // GotrueExceptionMapper intercepts it and returns a clean 401 Unauthorized.
-            var session = await _supabaseClient.Auth.SignIn(request.Email, request.Password);
+            var session = await supabaseClient.Auth.SignIn(request.Email, request.Password);
 
             if (session?.AccessToken == null)
             {
@@ -56,20 +58,27 @@ public static class Login
         }
     }
 
-    // 4. ENDPOINT ROUTE
-    public static void Map(IEndpointRouteBuilder app)
+    // 4. ENDPOINT (Implements IEndpoint for Assembly Auto-Scanning)
+    public class Endpoint : IEndpoint
     {
-        // POST /auth/login
-        app.MapPost("/auth/login", async (Request request, Handler handler, CancellationToken ct) =>
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapPost("/auth/login", HandleAsync)
+               .WithName("Login")
+               .WithTags("Auth")
+               .AddEndpointFilter<ValidationFilter<Request>>()
+               .Produces<Response>(StatusCodes.Status200OK)
+               .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+               .ProducesProblem(StatusCodes.Status401Unauthorized);
+        }
+
+        private static async Task<Ok<Response>> HandleAsync(
+            Request request, 
+            Handler handler, 
+            CancellationToken ct)
         {
             var response = await handler.ExecuteAsync(request, ct);
-            return Results.Ok(response);
-        })
-        .WithName("Login")
-        .WithTags("Auth")
-        .AddEndpointFilter<ValidationFilter<Request>>()
-        .Produces<Response>(StatusCodes.Status200OK)
-        .ProducesValidationProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status401Unauthorized);
+            return TypedResults.Ok(response);
+        }
     }
 }

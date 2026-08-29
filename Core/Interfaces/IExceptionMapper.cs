@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace TaskApi.Common.Exceptions;
+namespace TaskApi.Core.Interfaces;
 
 public interface IExceptionMapper
 {

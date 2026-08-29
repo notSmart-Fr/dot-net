@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using TaskApi.Core.Interfaces;
 
 namespace TaskApi.Features.Profile;
 
@@ -24,13 +25,17 @@ public static class GetProfile
         }
     }
 
-    public static void Map(IEndpointRouteBuilder app)
+   // 4. ENDPOINT (Implements IEndpoint for Assembly Auto-Scanning)
+    public class Endpoint : IEndpoint
     {
-        app.MapGet("/protected/profile", (ClaimsPrincipal user, Handler handler) => TypedResults.Ok(handler.Execute(user)))
-            .WithName("GetProfile")
-            .WithTags("Protected")
-            .RequireAuthorization() // Native .NET JWT Guard
-            .Produces<ProfileResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapGet("/protected/profile", (ClaimsPrincipal user, Handler handler) => TypedResults.Ok(handler.Execute(user)))
+                .WithName("GetProfile")
+                .WithTags("Protected")
+                .RequireAuthorization() // Native .NET JWT Guard
+                .Produces<ProfileResponse>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status401Unauthorized);
+        }
     }
 }

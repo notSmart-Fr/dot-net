@@ -1,9 +1,10 @@
 using FluentValidation;
-using TaskApi.Common;
-using TaskApi.Domain;
-using TaskApi.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using TaskApi.Common.Exceptions;
+using TaskApi.Common.Filters;
+using TaskApi.Core.Entities;
+using TaskApi.Core.Exceptions;
+using TaskApi.Core.Interfaces;
+using TaskApi.Infrastructure.Database;
 
 namespace TaskApi.Features.Tasks;
 
@@ -11,7 +12,6 @@ public static class CreateTask
 {
     // 1. DTOs
     public record CreateTaskRequest(string Title, bool Done = false);
-    // Response DTO
     public record TaskResponse(int Id, string Title, bool Done);
 
     // 2. VALIDATOR
@@ -25,16 +25,15 @@ public static class CreateTask
         }
     }
 
-    // 3. HANDLER (Class inside the same file for clean separation of DB logic)
+    // 3. HANDLER
     public class Handler(AppDbContext db)
     {
-        private readonly AppDbContext _db = db;
-
         public async Task<TaskResponse> ExecuteAsync(CreateTaskRequest request, CancellationToken ct)
         {
             // Business Rule: Check for duplicate titles
-            var existingTask = await _db.Tasks
+            var existingTask = await db.Tasks
                 .AnyAsync(t => t.Title == request.Title, ct);
+
             if (existingTask)
             {
                 throw new DuplicateTaskException(request.Title);
@@ -46,26 +45,34 @@ public static class CreateTask
                 Done = request.Done
             };
 
-            _db.Tasks.Add(taskEntity);
-            await _db.SaveChangesAsync(ct);
+            db.Tasks.Add(taskEntity);
+            await db.SaveChangesAsync(ct);
 
             return new TaskResponse(taskEntity.Id, taskEntity.Title, taskEntity.Done);
         }
     }
 
-    // 4. ENDPOINT ROUTE
-    public static void Map(IEndpointRouteBuilder app)
-    {   // POST /tasks 
-        app.MapPost("/tasks", async (CreateTaskRequest request, Handler handler, CancellationToken ct) =>
+    // 4. ENDPOINT (Implements IEndpoint for Assembly Auto-Scanning)
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapPost("/tasks", HandleAsync)
+               .WithName("CreateTask")
+               .WithTags("Tasks")
+               .AddEndpointFilter<ValidationFilter<CreateTaskRequest>>()
+               .Produces<TaskResponse>(StatusCodes.Status201Created)
+               .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+               .ProducesProblem(StatusCodes.Status409Conflict);
+        }
+
+        private static async Task<IResult> HandleAsync(
+            CreateTaskRequest request, 
+            Handler handler, 
+            CancellationToken ct)
         {
             var response = await handler.ExecuteAsync(request, ct);
-            // Return 201 Created with the new task's location
             return TypedResults.Created($"/tasks/{response.Id}", response);
-        })
-        .WithName("CreateTask")
-        .WithTags("Tasks")
-        .AddEndpointFilter<ValidationFilter<CreateTaskRequest>>()
-        .ProducesValidationProblem(StatusCodes.Status400BadRequest) // FluentValidation
-        .ProducesProblem(StatusCodes.Status409Conflict);            // DuplicateTaskException
+        }
     }
 }

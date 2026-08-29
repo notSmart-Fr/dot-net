@@ -1,38 +1,44 @@
 using Microsoft.EntityFrameworkCore;
-using TaskApi.Common;
-using TaskApi.Common.Exceptions;
-using TaskApi.Infrastructure;
+using TaskApi.Core.Exceptions;
+using TaskApi.Core.Interfaces;
+using TaskApi.Infrastructure.Database;
+
 namespace TaskApi.Features.Tasks;
+
 public static class GetTaskById
 {
     // 1. DTO
     public record TaskDto(int Id, string Title, bool Done);
 
-    // 2. HANDLER: Fetch a task by ID
+    // 2. HANDLER
     public class Handler(AppDbContext db)
     {
-        private readonly AppDbContext _db = db;
-
-        public async Task<TaskDto?> ExecuteAsync(int id, CancellationToken ct)
+        public async Task<TaskDto> ExecuteAsync(int id, CancellationToken ct)
         {
-            var taskEntity = await _db.Tasks
+            return await db.Tasks
                 .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw new TaskNotFoundException(id);
-            return new TaskDto(taskEntity.Id, taskEntity.Title, taskEntity.Done);
+                .Where(t => t.Id == id)
+                .Select(t => new TaskDto(t.Id, t.Title, t.Done))
+                .FirstOrDefaultAsync(ct) ?? throw new TaskNotFoundException(id);
         }
     }
 
-    // 3. ENDPOINT ROUTE
-    public static void Map(IEndpointRouteBuilder app)
+    // 3. ENDPOINT (Implements IEndpoint for Assembly Auto-Scanning)
+    public class Endpoint : IEndpoint
     {
-        app.MapGet("/tasks/{id:int}", async (int id, Handler handler, CancellationToken ct) =>
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapGet("/tasks/{id:int}", HandleAsync)
+               .WithName("GetTaskById")
+               .WithTags("Tasks")
+               .Produces<TaskDto>(StatusCodes.Status200OK)
+               .ProducesProblem(StatusCodes.Status404NotFound);
+        }
+
+        private static async Task<IResult> HandleAsync(int id, Handler handler, CancellationToken ct)
         {
             var task = await handler.ExecuteAsync(id, ct);
             return TypedResults.Ok(task);
-        })
-        .WithName("GetTaskById")
-        .WithTags("Tasks")
-        .ProducesProblem(StatusCodes.Status404NotFound); // Document error status codes for Swagger UI
-
+        }
     }
 }

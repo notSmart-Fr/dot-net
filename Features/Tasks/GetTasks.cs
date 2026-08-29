@@ -1,5 +1,9 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using TaskApi.Infrastructure;
+using TaskApi.Core.Interfaces;
+using TaskApi.Infrastructure.Database;
 using static TaskApi.Features.Tasks.CreateTask;
 
 namespace TaskApi.Features.Tasks;
@@ -19,20 +23,17 @@ public static class GetTasks
     // 3. HANDLER
     public class Handler(AppDbContext db)
     {
-        private readonly AppDbContext _db = db;
-
         public async Task<PaginatedResponse<TaskResponse>> ExecuteAsync(Query query, CancellationToken ct)
         {
-            var dbQuery = _db.Tasks.AsNoTracking();
+            var dbQuery = db.Tasks.AsNoTracking();
 
             int page = query.Page < 1 ? 1 : query.Page;
             int pageSize = query.PageSize > 50 ? 50 : (query.PageSize < 1 ? 10 : query.PageSize);
 
-            // Filter 1: Universal search across all DBs
+            // Filter 1: Universal search across PostgreSQL via ILike
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var searchTerm = query.Search.Trim().ToLower();
-                //using ilike for case-insensitive search in PostgreSQL
                 dbQuery = dbQuery.Where(t => EF.Functions.ILike(t.Title, $"%{searchTerm}%"));
             }
 
@@ -51,20 +52,28 @@ public static class GetTasks
                 .Select(t => new TaskResponse(t.Id, t.Title, t.Done))
                 .ToListAsync(ct);
 
-            // ALWAYS RETURN AT THE END OF THE METHOD
             return new PaginatedResponse<TaskResponse>(items, totalCount, page, pageSize);
         }
     }
 
-    // 4. ROUTE MAPPER
-    public static void Map(IEndpointRouteBuilder app)
+    // 4. ENDPOINT (Implements IEndpoint for Auto-Scanning)
+    public class Endpoint : IEndpoint
     {
-        app.MapGet("/tasks", async ([AsParameters] Query query, Handler handler, CancellationToken ct) =>
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapGet("/tasks", HandleAsync)
+               .WithName("GetTasks")
+               .WithTags("Tasks")
+               .Produces<PaginatedResponse<TaskResponse>>(StatusCodes.Status200OK);
+        }
+
+        private static async Task<IResult> HandleAsync(
+            [AsParameters] Query query, 
+            Handler handler, 
+            CancellationToken ct)
         {
             var result = await handler.ExecuteAsync(query, ct);
             return TypedResults.Ok(result);
-        })
-        .WithName("GetTasks")
-        .WithTags("Tasks");
+        }
     }
 }
