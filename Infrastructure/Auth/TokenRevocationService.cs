@@ -1,4 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using StackExchange.Redis;
 
@@ -6,54 +5,44 @@ namespace TaskApi.Infrastructure.Auth;
 
 public sealed class TokenRevocationService(IConnectionMultiplexer redis)
 {
-    private const string RevokedJtiPrefix = "auth:revoked-jti:";
+    private const string RevokedKeyPrefix = "auth:revoked-session:";
 
-    public static string GetRevokedJtiKey(string jti) => $"{RevokedJtiPrefix}{jti}";
+    public static string GetRevokedKey(string id) => $"{RevokedKeyPrefix}{id}";
 
-    public static TimeSpan GetRemainingLifetime(ClaimsPrincipal principal)
+    public static string? ExtractIdentifier(ClaimsPrincipal principal)
     {
-        var expClaim = principal.FindFirst(JwtRegisteredClaimNames.Exp)?.Value
-            ?? principal.FindFirst("exp")?.Value;
-
-        if (string.IsNullOrWhiteSpace(expClaim))
-        {
-            return TimeSpan.Zero;
-        }
-
-        if (!long.TryParse(expClaim, out var expUnix))
-        {
-            return TimeSpan.Zero;
-        }
-
-        var remainingSeconds = expUnix - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        return remainingSeconds > 0 ? TimeSpan.FromSeconds(remainingSeconds) : TimeSpan.Zero;
+        // Supabase uses 'session_id' for token sessions, falling back to 'sub' (User ID)
+        return principal.FindFirst("session_id")?.Value 
+            ?? principal.FindFirst("sub")?.Value 
+            ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     }
 
-    public async Task RevokeAsync(string jti, ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    public async Task RevokeAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(jti))
-        {
-            return;
-        }
+        var id = ExtractIdentifier(principal);
+        if (string.IsNullOrWhiteSpace(id)) return;
 
-        var ttl = GetRemainingLifetime(principal);
-        if (ttl <= TimeSpan.Zero)
+        // Extract remaining lifetime from 'exp' Unix timestamp
+        var ttl = TimeSpan.FromHours(1); // Default safety margin
+        var expClaim = principal.FindFirst("exp")?.Value;
+        if (long.TryParse(expClaim, out var expUnix))
         {
-            return;
+            var remaining = expUnix - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (remaining > 0)
+            {
+                ttl = TimeSpan.FromSeconds(remaining);
+            }
         }
 
         var db = redis.GetDatabase();
-        await db.StringSetAsync(GetRevokedJtiKey(jti), "1", ttl, When.Always, CommandFlags.None);
+        await db.StringSetAsync(GetRevokedKey(id), "1", ttl);
     }
 
-    public async Task<bool> IsRevokedAsync(string? jti, CancellationToken cancellationToken = default)
+    public async Task<bool> IsRevokedAsync(string? id, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(jti))
-        {
-            return false;
-        }
+        if (string.IsNullOrWhiteSpace(id)) return false;
 
         var db = redis.GetDatabase();
-        return await db.KeyExistsAsync(GetRevokedJtiKey(jti));
+        return await db.KeyExistsAsync(GetRevokedKey(id));
     }
 }

@@ -17,9 +17,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      # =========================================================================
-  # REDIS SERVICE
-  # =========================================================================
+
   redis:
     image: redis:7-alpine
     container_name: task_redis
@@ -31,6 +29,18 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  aspire_dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    container_name: task_aspire_dashboard
+    ports:
+      - "18888:18888" # Dashboard Web UI
+      - "4317:18889"  # Standard OTLP gRPC endpoint
+    environment:
+      - DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true
+      - DASHBOARD__FRONTEND__AUTHMODE=Unsecured
+      - DASHBOARD__OTLP__AUTHMODE=Unsecured
+      - DOTNET_DASHBOARD_OTLP_ENDPOINT_URL=http://0.0.0.0:18889
 
   app:
     build:
@@ -44,11 +54,16 @@ services:
       - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}
       - ASPNETCORE_ENVIRONMENT=Development
       - Redis__ConnectionString=redis:6379
+      - OTEL_SERVICE_NAME=TaskApi
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire_dashboard:18889
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      aspire_dashboard:
+        condition: service_started
 
 volumes:
   postgres_data:

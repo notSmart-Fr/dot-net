@@ -1,7 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using StackExchange.Redis;
 using Supabase;
 
 namespace TaskApi.Infrastructure.Auth;
@@ -24,7 +23,8 @@ public static class AuthExtensions
         // 1. Configure ASP.NET Core JWT Bearer Authentication
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
-            {
+            {   // Preserves raw JWT claim names ("jti", "exp", "sub") without mapping them to XML URIs
+                options.MapInboundClaims = false;
                 options.Authority = $"{supabaseUrl}/auth/v1";
                 options.Audience = "authenticated";
                 options.TokenValidationParameters = new TokenValidationParameters
@@ -36,21 +36,27 @@ public static class AuthExtensions
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };
-
-                options.Events = new JwtBearerEvents
+                // 2. THIS IS THE GUARD: Intercept every request to check Redis
+                 options.Events = new JwtBearerEvents
                 {
                     OnTokenValidated = async context =>
                     {
-                        var revocationService = context.HttpContext.RequestServices.GetRequiredService<TokenRevocationService>();
-                        var jti = context.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+                        var principal = context.Principal;
+                        if (principal is null) return;
 
-                        if (await revocationService.IsRevokedAsync(jti))
+                        var id = TokenRevocationService.ExtractIdentifier(principal);
+                        if (string.IsNullOrEmpty(id)) return;
+
+                        var revocationService = context.HttpContext.RequestServices
+                            .GetRequiredService<TokenRevocationService>();
+
+                        if (await revocationService.IsRevokedAsync(id, context.HttpContext.RequestAborted))
                         {
-                            context.Fail("Token has been revoked.");
+                            context.Fail("This token session has been revoked.");
                         }
                     }
-                };
-            });
+                }; 
+            }); 
 
         services.AddAuthorization();
 

@@ -4,6 +4,7 @@ using TaskApi.Infrastructure.Caching;
 using TaskApi.Infrastructure.Database;
 using TaskApi.Infrastructure.ExceptionHandling;
 using TaskApi.Infrastructure.Extensions;
+using TaskApi.Infrastructure.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDatabaseInfrastructure(builder.Configuration);
 builder.Services.AddRedisInfrastructure(builder.Configuration);
 builder.Services.AddAuthInfrastructure(builder.Configuration);
+builder.Services.AddTelemetryInfrastructure(builder.Configuration);
 builder.Services.AddExceptionHandlingInfrastructure(); // Auto-scans all IExceptionMappers
 builder.Services.AddApiDocsInfrastructure();
 

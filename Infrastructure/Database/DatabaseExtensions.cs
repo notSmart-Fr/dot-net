@@ -13,7 +13,10 @@ public static class DatabaseExtensions
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
-            {
+            {   
+                options.UseNpgsql(connectionString)
+                        .UseSnakeCaseNamingConvention(); // <-- Translates C# "Id" to Postgres "id" automatically
+
                 // Enables transient fault handling for PostgreSQL connection blips
                 npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
