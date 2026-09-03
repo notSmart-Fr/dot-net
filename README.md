@@ -113,7 +113,7 @@ Do not use `docker compose down -v` for this check because that command deletes 
    docker compose up --build
    ```
 
-3. Open Swagger UI at <http://localhost:5131/swagger>.
+3. Open Swagger UI at <http://localhost:5131/docs/index.html#description/introduction>.
 
 4. Stop the containers with `Ctrl+C`, or run the following command from another terminal:
 
