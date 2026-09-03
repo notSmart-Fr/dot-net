@@ -1,8 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Supabase;
-using TaskApi.Core.Interfaces;
-using TaskApi.Infrastructure.Auth;
+using TaskApi.Shared.Interfaces;
 using static Supabase.Gotrue.Constants;
 
 namespace TaskApi.Features.Auth;
