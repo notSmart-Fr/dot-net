@@ -1,8 +1,8 @@
 using FluentValidation;
-using TaskApi.Core.Exceptions;
-using TaskApi.Core.Interfaces;
-using TaskApi.Infrastructure.Database;
-using TaskApi.Infrastructure.Filters;
+using TaskApi.Features.Tasks.Exceptions;
+using TaskApi.Shared.Database;
+using TaskApi.Shared.Filters;
+using TaskApi.Shared.Interfaces;
 
 namespace TaskApi.Features.Tasks;
 

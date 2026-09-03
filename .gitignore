@@ -74,3 +74,6 @@ coverage/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+# Scraper
+.cache/
+.output/

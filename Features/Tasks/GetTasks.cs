@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using TaskApi.Core.Interfaces;
-using TaskApi.Infrastructure.Database;
+using TaskApi.Shared.Database;
+using TaskApi.Shared.Interfaces;
 using static TaskApi.Features.Tasks.CreateTask;
 
 namespace TaskApi.Features.Tasks;

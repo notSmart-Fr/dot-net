@@ -1,10 +1,11 @@
+using TaskApi.Features.Auth;
 using TaskApi.Infrastructure.ApiDocs;
-using TaskApi.Infrastructure.Auth;
-using TaskApi.Infrastructure.Caching;
-using TaskApi.Infrastructure.Database;
-using TaskApi.Infrastructure.ExceptionHandling;
-using TaskApi.Infrastructure.Extensions;
-using TaskApi.Infrastructure.Telemetry;
+using TaskApi.Shared.Caching;
+using TaskApi.Shared.Database;
+using TaskApi.Shared.ExceptionHandling;
+using TaskApi.Shared.Extensions;
+using TaskApi.Shared.Telemetry;
+using TaskApi.Features.Scraper;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +19,8 @@ builder.Services.AddApiDocsInfrastructure();
 
 // 2. Feature Application Services
 builder.Services.AddFeatureInfrastructure(); // Auto-scans all Handlers & Validators
-
+// 2.1. Scraper Feature
+builder.Services.AddScraperFeature();
 var app = builder.Build();
 //verify Redis connection
 await app.VerifyRedisConnectionAsync();

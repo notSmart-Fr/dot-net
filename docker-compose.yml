@@ -57,6 +57,9 @@ services:
       - OTEL_SERVICE_NAME=TaskApi
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire_dashboard:18889
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+    volumes:
+      - ./cache:/app/cache     # Persists HTML cache to host machine
+      - ./output:/app/output   # Persists JSON reports (books.json, errors.json) to host machine
     depends_on:
       db:
         condition: service_healthy

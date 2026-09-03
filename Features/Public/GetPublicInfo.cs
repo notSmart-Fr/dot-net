@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using TaskApi.Core.Interfaces;
+using TaskApi.Shared.Interfaces;
 
 namespace TaskApi.Features.Public;
 

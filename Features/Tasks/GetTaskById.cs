@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using TaskApi.Core.Exceptions;
-using TaskApi.Core.Interfaces;
-using TaskApi.Infrastructure.Database;
+using TaskApi.Features.Tasks.Exceptions;
+using TaskApi.Shared.Database;
+using TaskApi.Shared.Interfaces;
 
 namespace TaskApi.Features.Tasks;
 

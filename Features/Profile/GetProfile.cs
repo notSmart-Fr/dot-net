@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using TaskApi.Core.Interfaces;
+using TaskApi.Shared.Interfaces;
 
 namespace TaskApi.Features.Profile;
 

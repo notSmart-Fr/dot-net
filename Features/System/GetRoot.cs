@@ -1,4 +1,4 @@
-using TaskApi.Core.Interfaces;
+using TaskApi.Shared.Interfaces;
 
 namespace TaskApi.Features.System;
 

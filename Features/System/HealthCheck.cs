@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using TaskApi.Core.Interfaces;
+using TaskApi.Shared.Interfaces;
 
 namespace TaskApi.Features.System;
 
