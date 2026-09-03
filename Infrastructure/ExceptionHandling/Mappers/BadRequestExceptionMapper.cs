@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskApi.Core.Interfaces;
 
-namespace TaskApi.Common.Exceptions.Mappers;
+namespace TaskApi.Infrastructure.ExceptionHandling.Mappers;
 
 public sealed class BadRequestExceptionMapper : IExceptionMapper
 {

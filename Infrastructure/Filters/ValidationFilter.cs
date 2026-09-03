@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace TaskApi.Common.Filters;
+namespace TaskApi.Infrastructure.Filters;
 
 public class ValidationFilter<T>(IValidator<T>? validator = null) : IEndpointFilter where T : class
 {

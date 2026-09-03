@@ -1,6 +1,6 @@
 using Supabase;
 
-namespace TaskApi.Common.Filters;
+namespace TaskApi.Infrastructure.Filters;
 
 public class SupabaseAuthFilter(Client supabaseClient) : IEndpointFilter
 {

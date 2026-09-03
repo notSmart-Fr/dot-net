@@ -1,11 +1,8 @@
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Routing;
 using Supabase;
-using TaskApi.Common.Filters;
 using TaskApi.Core.Interfaces;
+using TaskApi.Infrastructure.Filters;
 
 namespace TaskApi.Features.Auth;
 

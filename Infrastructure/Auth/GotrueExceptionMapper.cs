@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Supabase.Gotrue.Exceptions;
 using TaskApi.Core.Interfaces;

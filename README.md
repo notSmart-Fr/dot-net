@@ -61,6 +61,8 @@ Add a screenshot of the Swagger UI below. Replace the placeholder path with the 
 
 <!-- Replace the path below with the Swagger UI screenshot. -->
 ![Swagger UI screenshot](docs/swagger-ui-screenshot.png)
+![Scalar UI screenshot](docs/auth-ui-screenshot.png)
+![Scalar UI screenshot](docs/public-auth-ui.png)
 
 ## Example Entity Framework Core query
 

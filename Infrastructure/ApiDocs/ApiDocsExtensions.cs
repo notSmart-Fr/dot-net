@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -14,6 +15,7 @@ public static partial class ApiDocsExtensions
     {
         services.AddOpenApi(options =>
         {
+            // Document Transformer: Defines API Info & Security Scheme definitions
             options.AddDocumentTransformer((document, context, cancellationToken) =>
             {
                 document.Info = new OpenApiInfo
@@ -34,13 +36,31 @@ public static partial class ApiDocsExtensions
                     Description = "Enter your Supabase Access Token"
                 };
 
-                var requirement = new OpenApiSecurityRequirement
-                {
-                    [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-                };
+                // REMOVED: document.Security.Add(requirement); 
+                // Global assignment removed to prevent locking public endpoints.
 
-                document.Security ??= [];
-                document.Security.Add(requirement);
+                return Task.CompletedTask;
+            });
+
+            // Operation Transformer: Dynamically applies Auth label ONLY to protected routes
+            options.AddOperationTransformer((operation, context, cancellationToken) =>
+            {
+                var metadata = context.Description.ActionDescriptor.EndpointMetadata;
+
+                // Check if endpoint is explicitly marked [AllowAnonymous]
+                bool isAnonymous = metadata.OfType<IAllowAnonymous>().Any();
+                
+                // Check if endpoint has [Authorize] or .RequireAuthorization()
+                bool requiresAuth = metadata.OfType<IAuthorizeData>().Any();
+
+                if (requiresAuth && !isAnonymous)
+                {
+                    operation.Security ??= new List<OpenApiSecurityRequirement>();
+                    operation.Security.Add(new OpenApiSecurityRequirement
+                    {
+                        [new OpenApiSecuritySchemeReference("Bearer", context.Document)] = []
+                    });
+                }
 
                 return Task.CompletedTask;
             });
@@ -52,11 +72,8 @@ public static partial class ApiDocsExtensions
     // 2. Middleware & Route Mapping
     public static WebApplication UseApiDocsDevelopmentUI(this WebApplication app)
     {
-        // 1. Map OpenAPI spec endpoint (serves /openapi/v1.json)
         app.MapOpenApi();
 
-        // 2. Map Scalar UI at /docs and point it to the actual generated OpenAPI spec.
-        // ASP.NET OpenAPI default document name is "v1", not "indexhtml".
         app.MapScalarApiReference("/docs", options =>
         {
             options.WithTitle("Task API Reference")
@@ -65,16 +82,9 @@ public static partial class ApiDocsExtensions
                    .WithOpenApiRoutePattern("/openapi/v1.json");
         });
 
-        // 3. Log startup path safely
         app.Lifetime.ApplicationStarted.Register(() =>
         {
             var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ScalarDocs");
-
-            var addresses = app.Services.GetService<Microsoft.AspNetCore.Hosting.Server.IServer>()
-                               ?.Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()
-                               ?.Addresses;
-
-            // Use the actual local development endpoint for the app, not the container hostname.
             LogScalarDocsUrl(logger, "http://localhost:5131");
         });
 

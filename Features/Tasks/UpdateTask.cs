@@ -1,11 +1,8 @@
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using TaskApi.Common.Filters;
 using TaskApi.Core.Exceptions;
 using TaskApi.Core.Interfaces;
 using TaskApi.Infrastructure.Database;
+using TaskApi.Infrastructure.Filters;
 
 namespace TaskApi.Features.Tasks;
 
